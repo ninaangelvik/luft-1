@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
+	"fmt"
 	"github.com/fjukstad/luftkvalitet"
 	"github.com/paulmach/go.geojson"
 )
@@ -41,6 +41,7 @@ func NILUAqiHandler(w http.ResponseWriter, r *http.Request) {
 	for _, hist := range historical {
 		geom := geojson.NewPointGeometry([]float64{hist.Location.Longitude, hist.Location.Latitude})
 		for _, m := range hist.Measurements {
+			fmt.Println(m)
 			f := geojson.NewFeature(geom)
 			f.SetProperty("name", hist.Station.Station)
 			f.SetProperty("component", hist.Component)

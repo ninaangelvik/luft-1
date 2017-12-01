@@ -168,12 +168,12 @@ $('#history-button').click(function(e)
     var provider = "nilu" 
 
     barChartNilu(area, component, datestring, container, element); 
-    // addToMap(map, area, customGPS, provider, component, datestring) 
+    addToMap(map, area, customGPS, provider, component, datestring) 
     component = "NO2" 
     element = "svg#chart-"+component
     container = "chart-"+component
-    // addToMap(map, area, customGPS, provider, component, datestring) 
     barChartNilu(area, component, datestring, container, element); 
+    addToMap(map, area, customGPS, provider, component, datestring) 
 
     $('#nilu-data').show();
   }
@@ -187,11 +187,10 @@ $('#history-button').click(function(e)
     }
     provider = "student" 
     components = ["dust", "temperature", "humidity"]
-    ret = barChartStudent(area, customGPS, components, datestring);
-    if(ret == false) {
-      console.log("false")
-    }
-    // addToMap(map, area, customGPS, provider, component, datestring)
+    barChartStudent(area, customGPS, components, datestring);
+    
+    component = "all"
+    addToMap(map, area, customGPS, provider, component, datestring)
     
     $('#student-data').show();
   }

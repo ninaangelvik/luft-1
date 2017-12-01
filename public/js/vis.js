@@ -26,8 +26,9 @@ function addToMap(map, area, customGPS, provider, component, datestring) {
             if(feature.properties.component) {
                 content += feature.properties.component+": "+feature.properties.value + "</br>"
             } 
-            if(feature.properties.dust){ 
-                content += "Dust: " + feature.properties.dust + "</br>" 
+            if(feature.properties.student){ 
+                content += "Pm10: " + feature.properties.dust + "</br>" 
+                content += "PM2.5: " + feature.properties.dust + "</br>" 
                 content += "Temperature: "+feature.properties.temperature + "</br>"
                 content += "Humidity: "+feature.properties.humidity + "</br>"
             }
@@ -36,19 +37,25 @@ function addToMap(map, area, customGPS, provider, component, datestring) {
         }
     }
 
-    var colorScheme = d3.scaleOrdinal(d3.schemeCategory20);
+    var url;
+    if(provider == "student") {
+        if(customGPS == true) {
+            url = "/"+ provider+"aqis?within="+area+"&"+datestring
+        }
+        else {
+            url = "/"+ provider+"aqis?area="+area+"&"+datestring
+        }
+    }
+    else if(provider == "nilu") {
+        url = "/"+ provider+"aqis?area="+area+"&"+datestring+"&component="+component
+    }
 
+    var colorScheme = d3.scaleOrdinal(d3.schemeCategory20);
     $.ajax({
         dataType: "json",
-        url: function(customGPS) {
-            if(customGPS == true) {
-                return "/"+ provider+"aqis?within="+area+"&"+datestring+"&component="+component
-            }
-            else {
-                return "/"+ provider+"aqis?area="+area+"&"+datestring+"&component="+component
-            }
-        },
+        url: url,
         success: function(data) {
+            console.log("success")
             var layer = L.geoJSON(data.features, {
                 pointToLayer: function(feature, latlng){
 
@@ -58,6 +65,7 @@ function addToMap(map, area, customGPS, provider, component, datestring) {
                     } else {
                         color = "#" + feature.properties.color
                     }
+                    console.log(color)
 
                     var geojsonMarkerOptions = {
                         color: color,
@@ -123,7 +131,7 @@ function barChartStudent(area, customGPS, components, datestring) {
         },
         function(error, data){
             var line;
-            if(data == 0) {
+            if(data.length == 0) {
                 drawNoData(components);
             }
             for(var v = 0; v < units.length; v++) {
@@ -225,7 +233,6 @@ function drawNoData(components) {
     for(var i = 0; i < components.length; i++) {
         $('svg#chart-' + components[i]).empty();
         var container = "chart-"+ components[i]
-        console.log(container)
         var element = "svg#chart-" + components[i]
         var svg = document.querySelector(element); 
         svg.setAttribute("width", document.getElementById(container).clientWidth) 
@@ -283,9 +290,8 @@ function barChartNilu(area, component, datestring, container, element) {
         return d; 
     },
     function(error, data){
-        console.log(data);
-        if(data == 0) {
-            drawNoData(component);
+        if(data.length == 0) {
+            drawNoData([component]);
         }
         x.domain(d3.extent(data, function(d) { return d.from; }));
         y.domain(d3.extent(data, function(d) { return d.value; }));
