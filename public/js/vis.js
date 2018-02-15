@@ -1,89 +1,128 @@
-// Create new map that we can add data points to. 
+// // Create new map that we can add data points to. 
 function newMap(id, coordinates) {
-    map = L.map(id, {
-        editable: true
+  var data = [{
+          type: 'scattermapbox',
+      }];
+      layout = {
+        dragmode: 'zoom',
+        mapbox: {
+          center: {
+            lat: coordinates[0],
+            lon: coordinates[1]
+          },
+          domain: {
+            x: [0, 1],
+            y: [0, 1]
+          },
+          style: 'dark',
+          zoom: 10
+        },
+        margin: {
+          r: 0,
+          t: 0,
+          b: 0,
+          l: 0,
+          pad: 0
+        },
+        showlegend: false
+     };
+
+    Plotly.setPlotConfig({
+      mapboxAccessToken: 'pk.eyJ1IjoiZmp1a3N0YWQiLCJhIjoiY2l2Mnh3azRvMDBrYTJ5bnYxcDAzZ3Z0biJ9.RHb5ENfbmzN65gjiB-L_wg'
     })
-    map.setView(coordinates, 9.6);
 
-    var accessToken = 'pk.eyJ1IjoiZmp1a3N0YWQiLCJhIjoiY2l2Mnh3azRvMDBrYTJ5bnYxcDAzZ3Z0biJ9.RHb5ENfbmzN65gjiB-L_wg';
-
-    L.tileLayer(
-        "https://api.mapbox.com/styles/v1/mapbox/dark-v9/tiles/256/{z}/{x}/{y}?access_token=" + accessToken, {
-            attribution: 'Map data &copy; <a href="http://openstreetmap.org">OpenStreetMap</a> contributors, <a href="http://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>, Imagery © <a href="http://mapbox.com">Mapbox</a>',
-            maxZoom: 18,
-            id: 'fjukstad.2148odo2',
-            accessToken: accessToken
-        }).addTo(map);
-
-    return map;
+    Plotly.newPlot(id, data, layout);
 }
 
-function addToMap(map, area, customGPS, provider, component, datestring) {
-
-    function onEachFeature(feature, layer) {
-        // does this feature have a property named popupContent?
-        if (feature.properties) {
-            var content = ""
-            if (feature.properties.name) {
-                content = "<b>" + feature.properties.name + "</b><br />"
-            }
-            if (feature.properties.component) {
-                content += feature.properties.component + ": " + feature.properties.value + "<br />"
-            }
-            if (feature.properties.pmTen) {
-                content += "PM10: " + feature.properties.pmTen + "<br />"
-                content += "PM2.5: " + feature.properties.pmTwoFive + "<br />"
-                content += "Temperature: " + feature.properties.temperature + "<br />"
-                content += "Humidity: " + feature.properties.humidity + "<br />"
-            }
-            content += feature.properties.date
-            layer.bindPopup(content);
-        }
-    }
-
-    var colorScheme = d3.scaleOrdinal(d3.schemeCategory20);
-
+function addToMap(map, area, customGPS, provider, component, datestring, coordinates) {
     var areaUri = encodeURIComponent(area);
     var url = ""
+    var size = 0;
+
     if (provider == "nilu") {
-        url = "/" + provider + "aqis?area=" + areaUri + "&" + datestring + "&component=" + component
+      url = getHistoricalUrl(area, datestring, component)
+      size = 10
     } else {
-        if (customGPS == true) {
-            url = "/" + provider + "aqis?within=" + areaUri + "&" + datestring
-        } else {
-            url = "/" + provider + "aqis?area=" + areaUri + "&" + datestring
-        }
+      url = getStudentUrl(area, customGPS, datestring)
+      size = 3
     }
+   
+    Plotly.d3.csv(url, function(err, rows){
+      if ( rows.length == 0 ) {
+        return; 
+      }
+      function unpack(rows, key) {
+          return rows.map(function(row) { return row[key]; });
+      }
+      console.log(rows)
 
-    $.ajax({
-        dataType: "json",
-        url: url,
-        success: function (data) {
-            var layer = L.geoJSON(data.features, {
-                pointToLayer: function (feature, latlng) {
-                    var color = ""
-                    if (!feature.properties.color) {
-                        color = colorScheme(feature.properties.name)
-                    } else {
-                        color = "#" + feature.properties.color
-                    }
-                    var geojsonMarkerOptions = {
-                        color: color,
-                        weight: feature.properties.weight,
-                        opacity: 0.2,
-                        fillOpacity: 0.2
-                    };
-                    return L.circle(latlng, geojsonMarkerOptions)
-                },
-                onEachFeature: onEachFeature
-            })
+      scl = [[10, 'rgb(150,0,90)'],[2.5, 'rgb(0, 0, 200)']];
 
-            layer.addTo(map);
-        }
-    });
+      var dataPmTen = {
+          type: 'scattermapbox',
+          mode: 'markers',
+          text: unpack(rows, 'pmTen'),
+          lon: unpack(rows, 'longitude'),
+          lat: unpack(rows, 'latitude'),
+          marker: {
+            color: 'rgb(150,0,90)',
+            cmin: 0,
+            cmax: 1.4,
+            reversescale: true,
+            opacity: 0.5,
+            size: size,
+          },
+          name: 'PM10'
+      }
+
+      var dataPmTwoFive = {
+          type: 'scattermapbox',
+          mode: 'markers',
+          text: unpack(rows, 'pmTwoFive'),
+          lon: unpack(rows, 'longitude'),
+          lat: unpack(rows, 'latitude'),
+          marker: {
+            color: 'rgb(0, 0, 200)',
+            cmin: 0,
+            cmax: 1.4,
+            reversescale: true,
+            opacity: 0.5,
+            size: size,
+          },
+          name: 'PM2.5'
+      }
+
+      data = [dataPmTen, dataPmTwoFive]
+
+      layout = {
+        dragmode: 'zoom',
+        mapbox: {
+          center: {
+            lat: coordinates[0],
+            lon: coordinates[1]
+          },
+          domain: {
+            x: [0, 1],
+            y: [0, 1]
+          },
+          style: 'dark',
+          zoom: 10
+        },
+        margin: {
+          r: 0,
+          t: 0,
+          b: 0,
+          l: 0,
+          pad: 0
+        },
+        showlegend: true
+     };
+
+    Plotly.plot('mapid', data, layout);
+  });
 }
 
-function barChartStudent(area, customGPS, components, datestring) {
+function barChartStudent(area, customGPS, datestring) {
   var dates = datestring.split("&")
 
   var start = moment(dates[0].split("=")[1])
@@ -94,8 +133,12 @@ function barChartStudent(area, customGPS, components, datestring) {
   
   var url = getStudentUrl(area, customGPS, datestring)
   Plotly.d3.csv(url, function(err, rows){
+    if ( rows.length == 0 ) {
+      document.getElementById("chart-dust").innerHTML = "Ingen data tilgjengelig";
+      return; 
+    }
     
-    var groupedBy = rows.groupBy('timestamp', timespan)
+    var groupedBy = rows.groupByTime('timestamp', timespan)
     var averagePmTen = calculateAvg(groupedBy, "pmTen")
     var averagePmTwoFive = calculateAvg(groupedBy, "pmTwoFive")
     var averageTemperature = calculateAvg(groupedBy, "temperature")
@@ -129,6 +172,7 @@ function barChartStudent(area, customGPS, components, datestring) {
       title: 'Støvkonsentrasjon',
       height: 500,
       width: 600,
+      yaxis: {title: '\u03BC'+"g/m3"},      
     };
 
     Plotly.newPlot('chart-dust', dataDust, layoutDust);
@@ -173,7 +217,63 @@ function barChartStudent(area, customGPS, components, datestring) {
   })
 }
 
-Array.prototype.groupBy = function(prop, timespan) {
+function barChartNilu(area, component, datestring) {
+  layoutColors = ['#17BECF', '#7F7F7F']
+
+  var url = getHistoricalUrl(area, datestring, component)
+
+  Plotly.d3.csv(url, function(err, rows){
+    function unpack(rows, key) {
+      return rows.map(function(row){ return row[key]; });
+    }
+
+    var stations = rows.groupBy("station")
+    var keys = Object.keys(stations)
+
+    var data = []
+    for ( i = 0; i < keys.length; i++ ) {
+      var trace = {
+        type: "scatter",
+        mode: "lines+markers",
+        name: keys[i],
+        x: unpack(stations[keys[i]], "to"),
+        y: unpack(stations[keys[i]], "value"),
+        line: {color: layoutColors[i]}
+      }
+
+      data.push(trace);
+    };
+    console.log(data)
+       
+    var layout = {
+      title: component,
+      height: 500,
+      width: 600,
+      yaxis: {title: '\u03BC'+"g/m3"},      
+    };
+
+    Plotly.newPlot('chart-'+ component, data, layout);
+
+  })
+   
+}
+
+
+function getHistoricalUrl(area, datestring, component) {
+    area = encodeURIComponent(area);
+    return "/historical?area=" + area + "&" + datestring + "&component=" + component
+}
+
+function getStudentUrl(area, customGPS, datestring, component) {
+    area = encodeURIComponent(area);
+    if (customGPS == true) {
+        return "/student?within=" + area + "&" + datestring
+    } else {
+        return "/student?area=" + area + "&" + datestring
+    }
+}
+
+Array.prototype.groupByTime = function(prop, timespan) {
     return this.reduce(function(groups, item) {
       var val;
       if (timespan <= 1) {val = item[prop].slice[0,16]}
@@ -181,6 +281,15 @@ Array.prototype.groupBy = function(prop, timespan) {
       else if (timespan <= 744) { val = item[prop].slice(0,10) }
       else { val = item[prop].slice(0,7)}
 
+      groups[val] = groups[val] || []
+      groups[val].push(item)
+      return groups
+    }, {})
+}
+
+Array.prototype.groupBy = function(prop) {
+    return this.reduce(function(groups, item) {
+      var val = item[prop]; 
       groups[val] = groups[val] || []
       groups[val].push(item)
       return groups
@@ -201,145 +310,6 @@ function getAvg(values) {
     return Number(p) + Number(c);
   }) / values.length);
 }
-
-
-function barChartNilu(area, component, datestring, container, element) {
-
-    var parseTime = d3.utcParse("%Y-%m-%dT%H:%M:%S.%LZ");
-
-    var svg = document.querySelector(element);
-    svg.setAttribute("width", document.getElementById(container).clientWidth)
-
-    var svg = d3.select(element),
-        margin = {
-            top: 20,
-            right: 30,
-            bottom: 20,
-            left: 30
-        },
-        width = +svg.attr("width") - margin.left - margin.right,
-        height = +svg.attr("height") - margin.top - margin.bottom,
-        g = svg.append("g").attr("transform", "translate(" + margin.left + "," + margin.top + ")");
-
-    var x = d3.scaleTime()
-        .rangeRound([0, width]);
-
-    var y = d3.scaleLinear()
-        .rangeRound([height, 0]);
-
-    var z = d3.scaleOrdinal(d3.schemeCategory20);
-
-    var line = d3.line()
-        .curve(d3.curveBasis)
-        .x(function (d) {
-            return x(d.from);
-        })
-        .y(function (d) {
-            return y(d.value);
-        });
-
-    var unit = "";
-
-    var stations = {};
-    var url;
-    url = getHistoricalUrl(area, datestring, component);
-
-    d3.csv(url, function (d) {
-            if (!stations[d.station]) {
-                stations[d.station] = []
-            }
-            d.from = parseTime(d.from);
-            d.to = parseTime(d.to);
-            d.value = parseFloat(d.value)
-            component = d.component
-            unit = d.unit
-            stations[d.station].push(d)
-            return d;
-        },
-        function (error, data) {
-            if (data == 0) {
-                drawNoData(component);
-            }
-            x.domain(d3.extent(data, function (d) {
-                return d.from;
-            }));
-            y.domain(d3.extent(data, function (d) {
-                return d.value;
-            }));
-
-            g.append("g")
-                .attr("transform", "translate(0," + height + ")")
-                .call(d3.axisBottom(x))
-                .select(".domain")
-                .remove();
-
-            g.append("g")
-                .call(d3.axisLeft(y))
-                .append("text")
-                .attr("fill", "#000")
-                .attr("transform", "rotate(-90)")
-                .attr("y", 6)
-                .attr("dy", "0.71em")
-                .attr("text-anchor", "end")
-                .text(component + "(" + unit + ")");
-
-            label_offset = width / 2
-            var component_selector = component.replace("/", "")
-
-            g.append("g")
-                .append("text")
-                .attr("id", component_selector + "-label")
-                .attr("transform", "translate(" + label_offset + ",0)")
-                .attr("fill", "#000")
-                .text("")
-
-
-            for (var station in stations) {
-                var id = station.replace("\ ", "")
-                id = id.replace(",", "")
-                id = id.replace(".", "")
-
-
-                path = g.append("path")
-                    .datum(stations[station])
-                    .attr("fill", "none")
-                    .style("stroke", z(station))
-                    .attr("stroke", "steelblue")
-                    .attr("stroke-linejoin", "round")
-                    .attr("stroke-linecap", "round")
-                    .attr("stroke-width", 1.5)
-                    .attr("d", line)
-                    .attr("id", id + "-" + component_selector)
-
-                d3.select("path#" + id + "-" + component_selector).on("mouseover", function () {
-                        d3.select(this).style("stroke-width", 5);
-                        label = d3.select(this).data()[0][0].station
-                        d3.select("text#" + component_selector + "-label").text(label)
-                    })
-
-                    .on("mouseout", function () {
-                        d3.select(this).style("stroke-width", 1.5);
-                        d3.select("text#" + component_selector + "-label").text("")
-                    })
-            }
-        })
-}
-
-
-function getHistoricalUrl(area, datestring, component) {
-    area = encodeURIComponent(area);
-    return "/historical?area=" + area + "&" + datestring + "&component=" + component
-}
-
-function getStudentUrl(area, customGPS, datestring, component) {
-    area = encodeURIComponent(area);
-    if (customGPS == true) {
-        return "/student?within=" + area + "&" + datestring
-    } else {
-        return "/student?area=" + area + "&" + datestring
-    }
-}
-
 
 function clearVis(element, map) {
     $(element).html("")

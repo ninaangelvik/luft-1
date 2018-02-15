@@ -26,9 +26,10 @@ function toggleGPSInput(checkbox) {
 }
 
 function clearCharts() {
-  // $("#student-data").hide()
-  $("#student-title").hide()
+  $("#nilu-data").hide()
   $("#nilu-title").hide()
+  $("#student-data").hide()
+  $("#student-title").hide()
 }
 
 function getCoordinates() {

@@ -100,15 +100,17 @@ func HistoricalHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	records := [][]string{}
-	header := []string{"station", "from", "to", "value", "component", "unit"}
+	header := []string{"station", "longitude", "latitude", "from", "to", "value", "component", "unit"}
 	records = append(records, header)
 
 	for _, hist := range historical {
 		for _, m := range hist.Measurements {
+			longitude := strconv.FormatFloat(hist.Location.Longitude, 'f', -1, 64)
+			latitude := strconv.FormatFloat(hist.Location.Latitude, 'f', -1, 64)
 			from := m.FromTime.Format(timeLayout)
 			to := m.ToTime.Format(timeLayout)
 			value := strconv.FormatFloat(m.Value, 'f', -1, 64)
-			record := []string{hist.Station.Station, from, to, value, hist.Component, m.Unit}
+			record := []string{hist.Station.Station, longitude, latitude, from, to, value, hist.Component, m.Unit}
 			records = append(records, record)
 		}
 	}
